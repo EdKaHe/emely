@@ -1,13 +1,17 @@
 # Emely
 
-A Python package for Maximum Likelihood Estimation (MLE) parameter fitting, designed for data with Poisson or Gaussian noise statistics.
+**Emely** is a lightweight Python package for **maximum likelihood estimation (MLE)**–based parameter fitting.  
+It provides a `curve_fit`-like interface built on top of `scipy.optimize.minimize`, with support for **Poisson** and **Gaussian** noise models.
+
+---
 
 ## Features
 
-- **MLE fitting** for Poisson and Gaussian noise models
-- Can be used just like `scipy.optimize.curve_fit`
-- Automatic covariance matrix estimation via Fisher information matrix
-- Support for parameter bounds and custom optimization methods
+- **MLE fitting** for Poisson and Gaussian noise  
+- Mirrors the function inputs and outputs of `scipy.optimize.curve_fit`  
+- Automatic **covariance matrix estimation** via the Fisher information matrix  
+
+---
 
 ## Installation
 
@@ -54,9 +58,16 @@ plt.legend()
 
 ## Why MLE for Poisson Data?
 
-Least-squares optimization assumes Gaussian noise statistics. MLE can provide optimal estimates when the noise follows Poisson statistics.
+Maximum likelihood estimation (MLE) can correctly model Poisson- or Gaussian-distributed noise, leading to more accurate and unbiased parameter estimate as compared to least-squares fitting, which is only optimal for Gaussian-distributed noise.
 
-## Documentation
+## Examples
 
-See `example_1.ipynb` and `example_2.ipynb` for detailed usage examples with 1D and 2D Gaussian functions and benchmarking against least squares and Gaussian MLE algorithms.
+See the provided notebooks for detailed usage and comparisons:
+- example_1.ipynb: 1D Gaussian fitting with Poisson and Gaussian noise
+- example_2.ipynb: 2D Gaussian fitting and performance benchmarking
+These examples also compare least-squares, Gaussian MLE, and Poisson MLE approaches.
+
+## License
+
+MIT License © 2025
 
