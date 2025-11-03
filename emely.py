@@ -161,13 +161,9 @@ def covariance_matrix(f, x_data, y_data, p, sigma, absolute_sigma, noise_type):
 
     W = np.diag(w.flatten())
 
-    x = np.array(x_data)
-    if x.ndim == 1:
-        x = x.reshape(-1, 1)
-
     J = []
     for ii in range(n_x):
-        J.append(jacobian(lambda p: f(x[:, ii], *p), p, initial_step=1e-9).df)
+        J.append(jacobian(lambda p: f(x_data[:, ii], *p), p, initial_step=1e-9).df)
 
     J = np.array(J)
 
