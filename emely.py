@@ -57,6 +57,9 @@ def mle_fit(
 
     bounds = list(zip(*bounds)) if bounds is not None else None
 
+    if sigma is None and absolute_sigma:
+        raise ValueError("sigma must be provided if absolute_sigma=True")
+
     result = minimize(
         lambda p: negative_log_likelihood(f, x_data, y_data, p, sigma, noise_type),
         x0=p0,
