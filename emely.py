@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from scipy.differentiate import jacobian
+# from scipy.differentiate import jacobian
 
 
 def mle_fit(
@@ -162,11 +162,15 @@ def covariance_matrix(f, x_data, y_data, p, sigma, absolute_sigma, noise_type):
 
     W = np.diag(w.flatten())
 
-    J = []
-    for ii in range(n_x):
-        J.append(jacobian(lambda p: f(x_data[:, ii], *p), p, initial_step=1e-9).df)
+    # TODO: Implement a numerically more robust Jacobian estimation method.
+    J = jacobian(f, x_data, p)
 
-    J = np.array(J)
+    # Note: scipy.differentiate.jacobian passes a vector to each parameter
+    # which causes issues with some functions
+    # J = []
+    # for ii in range(n_x):
+    # J.append(jacobian(lambda p: f(x_data[:, ii], *p), p, initial_step=1e-9).df)
+    # J = np.array(J)
 
     FIM = J.T @ W @ J
     try:
@@ -175,3 +179,21 @@ def covariance_matrix(f, x_data, y_data, p, sigma, absolute_sigma, noise_type):
         covariance = np.linalg.pinv(FIM)
 
     return covariance
+
+
+def jacobian(f, x_data, p):
+    n_v, n_x = x_data.shape
+    n_p = len(p)
+
+    J = np.zeros((n_x, n_p))
+    for ii in range(n_p):
+        dp = 1e3 * np.finfo(float).eps
+
+        p_1 = np.copy(p)
+        p_2 = np.copy(p)
+        p_1[ii] -= dp / 2
+        p_2[ii] += dp / 2
+
+        J[:, ii] = (f(x_data, *p_2) - f(x_data, *p_1)) / dp
+
+    return J
