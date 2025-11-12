@@ -1,7 +1,7 @@
 # Emely
 
 **Emely** is a lightweight Python package for **maximum likelihood estimation (MLE)**–based parameter fitting.  
-It provides a `curve_fit`-like interface built on top of `scipy.optimize.minimize`, with support for **Poisson** and **Gaussian** noise models.
+It provides a `scipy.optimize.curve_fit`-like interface built on top of `scipy.optimize.minimize`, with support for **Poisson** and **Gaussian** noise models.
 
 ---
 
@@ -15,9 +15,19 @@ It provides a `curve_fit`-like interface built on top of `scipy.optimize.minimiz
 
 ## Installation
 
+Install from source using pip (requires Python 3.8+):
+
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
+
+For development, install in editable mode:
+
+```bash
+pip install -e .
+```
+
+Dependencies are managed via `pyproject.toml`.
 
 ## Quick Start
 
