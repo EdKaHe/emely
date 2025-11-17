@@ -1,7 +1,7 @@
 from typing import Any
 import inspect
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 import numdifftools as nd
 from abc import ABC, abstractmethod
 
@@ -76,8 +76,8 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        params_init : array_like
-            Initial guess for the parameters with size num_params.
+        params_init : array_like, optional
+            Initial guess for the parameters with size num_params. Default is None.
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
@@ -97,7 +97,7 @@ class BaseMLE(ABC):
             Normalized independent variable. Shape (num_vars, num_data).
         y_data : ndarray
             Dependent data. Shape (num_data,).
-        params_init : array_like
+        params_init : array_like, optional
             Initial parameter guess. Shape (num_params,).
         param_bounds : list or None
             Normalized parameter bounds. List of tuples, each with shape (num_params,).
@@ -118,7 +118,13 @@ class BaseMLE(ABC):
             sigma = np.full_like(y_data, sigma)
 
         if param_bounds is not None:
-            param_bounds = list[tuple[Any, ...]](zip(*param_bounds))
+            param_bounds = list(zip(*param_bounds))
+        if params_init is None and (
+            param_bounds is None or np.any(~np.isfinite(param_bounds))
+        ):
+            raise ValueError(
+                "Finite parameter bounds must be provided if no initial parameters are provided."
+            )
 
         return (
             x_data,
@@ -134,7 +140,7 @@ class BaseMLE(ABC):
         self,
         x_data,
         y_data,
-        params_init,
+        params_init=None,
         param_bounds=None,
         sigma=None,
         is_sigma_absolute=False,
@@ -148,8 +154,8 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data, nominally f(x_data, *params) with shape (num_data,).
-        params_init : array_like
-            Initial guess for the parameters. Shape (num_params,).
+        params_init : array_like, optional
+            Initial guess for the parameters. Shape (num_params,). Default is None.
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
@@ -221,8 +227,8 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data, nominally f(x_data, *params) with shape (num_data,).
-        params_init : array_like
-            Initial guess for the parameters with size num_params.
+        params_init : array_like, optional
+            Initial guess for the parameters with size num_params. Default is None.
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
@@ -326,6 +332,14 @@ class BaseMLE(ABC):
         params : ndarray
             Optimal parameter values. Shape (num_params,).
         """
+        if self.params_init is None:
+            result = differential_evolution(
+                lambda params: self._objective(x_data, y_data, params, sigma),
+                bounds=self.param_bounds,
+                tol=1e-9,
+                polish=False,
+            )
+            self.params_init = result.x
 
         result = minimize(
             lambda params: self._objective(x_data, y_data, params, sigma),
@@ -430,7 +444,9 @@ class BaseMLE(ABC):
             Jacobian matrix. Shape (num_data, num_params).
         """
         params = self.params
-        jacobian = nd.Jacobian(lambda p: self.model(x_data, *p), method="complex")
+        jacobian = nd.Jacobian(
+            lambda p: self.model(x_data, *p), method="complex", step=1e-15
+        )
         J = jacobian(params)
 
         return J
