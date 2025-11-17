@@ -1,5 +1,6 @@
 import numpy as np
 from .base import BaseMLE
+from scipy.stats import poisson
 
 
 class PoissonMLE(BaseMLE):
@@ -10,9 +11,36 @@ class PoissonMLE(BaseMLE):
     distribution.
     """
 
-    def negative_log_likelihood(self, x_data, y_data, params, sigma=None):
+    def _sample_noise(self, x_data, y_data, sigma, is_sigma_absolute):
         """
-        Calculate the negative log-likelihood for Gaussian noise.
+        Return the noise samples from the noise distribution.
+
+        Parameters
+        ----------
+        x_data : array_like
+            The independent variable with shape (num_vars, num_data).
+        y_data : array_like
+            The dependent data with shape (num_data,).
+        sigma : array_like, optional
+            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
+        is_sigma_absolute : bool, optional
+            If True, sigma is used for covariance matrix calculation.
+            If False, covariances are calculated from residuals.
+
+        Returns
+        -------
+        noise : ndarray
+            Noise samples from the noise distribution. Shape (num_data,).
+        """
+
+        scale_squared = self._scale_squared(x_data, y_data, sigma, is_sigma_absolute)
+        mu = scale_squared
+
+        return poisson.rvs(mu)
+
+    def _objective(self, x_data, y_data, params, sigma):
+        """
+        Calculate the objective function derived from the negative log-likelihood for Poisson noise.
 
         Parameters
         ----------
@@ -27,32 +55,28 @@ class PoissonMLE(BaseMLE):
 
         Returns
         -------
-        nll : float
-            Negative log-likelihood value.
+        obj : float
+            Value of the objective function.
         """
         y_pred = self.model(x_data, *params)
         y_pred = np.clip(y_pred, 1e-12, np.inf)
 
-        nll = -np.sum(y_data * np.log(y_pred) - y_pred)
+        obj = -np.sum(y_data * np.log(y_pred) - y_pred)
 
-        return nll
+        return obj
 
-    def fisher_information_matrix(
-        self, x_data, y_data, params, sigma=None, is_sigma_absolute=False
-    ):
+    def _scale_squared(self, x_data, y_data, sigma, is_sigma_absolute):
         """
-        Calculate the Fisher information matrix for Gaussian noise.
+        Calculate the squared scale parameter of the noise distribution.
 
         Parameters
         ----------
         x_data : array_like
-            The independent variable.
+            The independent variable with shape (num_vars, num_data).
         y_data : array_like
-            The dependent data.
-        params : array_like
-            Parameter values.
+            The dependent data with shape (num_data,).
         sigma : array_like, optional
-            Uncertainties in y_data.
+            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
         is_sigma_absolute : bool, optional
             If True, sigma is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
@@ -60,16 +84,12 @@ class PoissonMLE(BaseMLE):
 
         Returns
         -------
-        FIM : 2-D array
-            Fisher information matrix of shape (num_params, num_params).
+        scale_squared : ndarray
+            Squared scale parameter of the noise distribution. Shape (num_data,).
         """
+        params = self.params
+
         y_pred = self.model(x_data, *params)
         y_pred = np.clip(y_pred, 1e-12, np.inf)
 
-        w = 1 / y_pred
-        W = np.diag(w)
-        J = self.jacobian(x_data, params)
-
-        FIM = J.T @ W @ J
-
-        return FIM
+        return y_pred

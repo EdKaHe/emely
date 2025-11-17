@@ -1,14 +1,14 @@
 import numpy as np
 from .base import BaseMLE
-from scipy.stats import norm
+from scipy.stats import laplace
 
 
-class GaussianMLE(BaseMLE):
+class LaplaceMLE(BaseMLE):
     """
-    Maximum likelihood estimation for Gaussian noise distribution.
+    Maximum likelihood estimation for Laplace noise distribution.
 
-    This class implements MLE fitting assuming the data follows a Gaussian
-    (normal) distribution.
+    This class implements MLE fitting assuming the data follows a Laplace
+    distribution.
     """
 
     def _sample_noise(self, x_data, y_data, sigma, is_sigma_absolute):
@@ -36,16 +36,16 @@ class GaussianMLE(BaseMLE):
         scale_squared = self._scale_squared(x_data, y_data, sigma, is_sigma_absolute)
         scale = np.sqrt(scale_squared)
 
-        return norm.rvs(scale=scale)
+        return laplace.rvs(scale=scale)
 
     def _objective(self, x_data, y_data, params, sigma):
         """
-        Calculate the objective function derived from the negative log-likelihood for Gaussian noise.
+        Calculate the objective function derived from the negative log-likelihood for Laplace noise.
 
         Parameters
         ----------
         x_data : array_like
-            The independent variable where the data is measured.
+            The independent variable.
         y_data : array_like
             The dependent data.
         params : array_like
@@ -60,7 +60,7 @@ class GaussianMLE(BaseMLE):
         """
         y_pred = self.model(x_data, *params)
 
-        obj = np.sum((y_data - y_pred) ** 2 / sigma**2)
+        obj = np.sum(np.abs(y_data - y_pred) / sigma)
 
         return obj
 
@@ -93,10 +93,12 @@ class GaussianMLE(BaseMLE):
 
         y_pred = self.model(x_data, *params)
 
-        scale_squared = sigma**2
+        scale_squared = sigma**2 / 2
         if not is_sigma_absolute:
             weight = (
-                1 / (num_data - num_params) * np.sum((y_data - y_pred) ** 2 / sigma**2)
+                2
+                / (num_data - num_params)
+                * (np.sum(np.abs(y_data - y_pred) / sigma)) ** 2
             )
             scale_squared = scale_squared * weight
 

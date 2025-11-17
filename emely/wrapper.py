@@ -1,5 +1,6 @@
 from .gaussian import GaussianMLE
 from .poisson import PoissonMLE
+from .laplace import LaplaceMLE
 
 
 def curve_fit(
@@ -12,7 +13,7 @@ def curve_fit(
     absolute_sigma=False,
     method="nelder-mead",
     noise="gaussian",
-    **kwargs,
+    **optimizer_kwargs,
 ):
     """
     This function provides a scipy.optimize.curve_fit-like interface for maximum likelihood
@@ -27,33 +28,33 @@ def curve_fit(
     xdata : array_like
         The independent variable with shape (num_vars, num_data).
     ydata : array_like
-        The dependent data, nominally f(x_data, *params) with shape (num_data,).
+        The dependent data. Shape (num_data,).
     p0 : array_like, optional
-        Initial guess for the parameters with size num_params. Default is None.
+        Initial guess for the parameters. Shape (num_params,). Default is None.
     bounds : 2-tuple of array_like, optional
-        Bounds for the parameters as (lower_bounds, upper_bounds).
+        Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
         Use None for no bound. Default is None.
     sigma : array_like, optional
-        Uncertainties in y_data. May be used depending on the noise distribution.
+        Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
     absolute_sigma : bool, optional
         If True, sigma is used for covariance matrix calculation.
         If False, covariances are calculated from residuals.
     method : str, optional
         Optimization method for scipy.optimize.minimize. Default is "nelder-mead".
-    noise : {"gaussian", "poisson"}, optional
+    noise : {"gaussian", "poisson", "laplace"}, optional
         Noise type for maximum likelihood estimation. Default is "gaussian".
-        - "gaussian": Assumes Gaussian (normal) noise distribution
-        - "poisson": Assumes Poisson noise distribution
-    **kwargs
+        - "gaussian": Assumes a Gaussian (normal) noise distribution
+        - "poisson": Assumes a Poisson noise distribution
+        - "laplace": Assumes a Laplace noise distribution
+    **optimizer_kwargs
         Additional keyword arguments passed to scipy.optimize.minimize.
 
     Returns
     -------
-    popt : array
-        Optimal values for the num_params parameters so that the negative log-likelihood
-        is minimized.
-    pcov : 2-D array
-        The estimated covariance matrix of params of shape (num_params, num_params).
+    popt : ndarray
+        Optimal parameter values. Shape (num_params,).
+    pcov : ndarray
+        Estimated covariance matrix. Shape (num_params, num_params).
     """
 
     model = f
@@ -69,8 +70,10 @@ def curve_fit(
         MLE = GaussianMLE
     elif noise == "poisson":
         MLE = PoissonMLE
+    elif noise == "laplace":
+        MLE = LaplaceMLE
 
-    estimator = MLE(model)
+    estimator = MLE(model, verbose, optimizer, **optimizer_kwargs)
 
     params, params_cov = estimator.fit(
         x_data,
@@ -79,9 +82,6 @@ def curve_fit(
         param_bounds,
         sigma,
         is_sigma_absolute,
-        optimizer,
-        verbose,
-        **kwargs,
     )
 
     popt = params

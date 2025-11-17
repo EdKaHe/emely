@@ -79,8 +79,9 @@ See the provided notebooks for detailed usage and comparisons:
 - **example_2.ipynb:** Fitting a 2D Gaussian signal with Poisson noise
 - **example_3.ipynb:** Fitting a 2D Gaussian signal with temporally changing width and Poisson noise
 - **example_4.ipynb:** Fitting 1D Gaussian signals with distinct Poisson noise to validate parameter covariances
+- **example_5.ipynb:** Fitting 1D Gaussian signals with Laplace noise to validate parameter covariances
 
-These examples compare the accuracy of least-squares, Gaussian MLE, and Poisson MLE fits.
+These examples compare the accuracy of least-squares, Gaussian MLE, Poisson MLE, and Laplace MLE fits.
 
 ## License
 
