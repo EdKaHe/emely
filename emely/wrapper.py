@@ -41,6 +41,7 @@ def curve_fit(
         If False, covariances are calculated from residuals.
     method : str, optional
         Optimization method for scipy.optimize.minimize. Default is "nelder-mead".
+        This parameter takes precedence over any `method` specified in `optimizer_kwargs`.
     noise : {"gaussian", "poisson", "laplace"}, optional
         Noise type for maximum likelihood estimation. Default is "gaussian".
         - "gaussian": Assumes a Gaussian (normal) noise distribution
@@ -48,6 +49,7 @@ def curve_fit(
         - "laplace": Assumes a Laplace noise distribution
     **optimizer_kwargs
         Additional keyword arguments passed to scipy.optimize.minimize.
+        Note: The `method` parameter will override any `method` key in `optimizer_kwargs`.
 
     Returns
     -------
@@ -63,7 +65,7 @@ def curve_fit(
     params_init = p0
     param_bounds = bounds
     is_sigma_absolute = absolute_sigma
-    optimizer = method
+    optimizer_kwargs["method"] = method
     verbose = False
 
     if noise == "gaussian":
@@ -73,7 +75,7 @@ def curve_fit(
     elif noise == "laplace":
         MLE = LaplaceMLE
 
-    estimator = MLE(model, verbose, optimizer, **optimizer_kwargs)
+    estimator = MLE(model, verbose, **optimizer_kwargs)
 
     params, params_cov = estimator.fit(
         x_data,

@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "emely"
 version = "0.1.0"
+description = "A lightweight Python package for maximum likelihood estimation (MLE)–based parameter fitting with support for various noise models"
 requires-python = ">=3.8"
 dependencies = [
   "numpy>=1.20.0",

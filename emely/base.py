@@ -1,5 +1,3 @@
-from typing import Any
-import inspect
 import numpy as np
 from scipy.optimize import minimize, differential_evolution
 import numdifftools as nd
@@ -11,7 +9,7 @@ class BaseMLE(ABC):
     Base class for maximum likelihood estimation.
 
     This class provides common functionality for fitting models with different
-    noise distributions (Poisson, Gaussian, etc.). Subclasses should implement the
+    noise distributions (Poisson, Gaussian, Laplace, etc.). Subclasses should implement the
     negative log-likelihood and the Cramér-Rao bound or the Monte Carlo method to
     compute the covariance matrix.
     """
@@ -20,7 +18,6 @@ class BaseMLE(ABC):
         self,
         model,
         verbose=False,
-        optimizer="nelder-mead",
         **optimizer_kwargs,
     ):
         """
@@ -32,10 +29,14 @@ class BaseMLE(ABC):
             The model function, f(x_data, *params).
         verbose : bool, optional
             If True, print the optimization results. Default is False.
-        optimizer : str, optional
-            Optimization method for scipy.optimize.minimize. Default is "nelder-mead".
-        optimizer_kwargs : dict, optional
-            Additional keyword arguments passed to scipy.optimize.minimize.
+        **optimizer_kwargs
+            Keyword arguments passed to scipy.optimize.minimize. Default values:
+            - method : str, default "nelder-mead"
+                Optimization method to use.
+            - tol : float, default 1e-9
+                Tolerance for termination.
+            Any additional keyword arguments are also passed through to
+            scipy.optimize.minimize. User-provided values override the defaults.
         """
         self.model = self._wrap_model(model)
         self.params_init = None
@@ -44,8 +45,12 @@ class BaseMLE(ABC):
         self.param_covs = None
         self.param_confs = None
         self.verbose = verbose
-        self.optimizer = optimizer
-        self.optimizer_kwargs = optimizer_kwargs
+
+        default_optimizer_kwargs = {
+            "method": "nelder-mead",
+            "tol": 1e-9,
+        }
+        self.optimizer_kwargs = {**default_optimizer_kwargs, **optimizer_kwargs}
 
     @staticmethod
     def _wrap_model(model):
@@ -336,7 +341,7 @@ class BaseMLE(ABC):
             result = differential_evolution(
                 lambda params: self._objective(x_data, y_data, params, sigma),
                 bounds=self.param_bounds,
-                tol=1e-9,
+                tol=self.optimizer_kwargs["tol"],
                 polish=False,
             )
             self.params_init = result.x
@@ -345,7 +350,6 @@ class BaseMLE(ABC):
             lambda params: self._objective(x_data, y_data, params, sigma),
             x0=self.params_init,
             bounds=self.param_bounds,
-            method=self.optimizer,
             **self.optimizer_kwargs,
         )
 
