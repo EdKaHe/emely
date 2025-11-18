@@ -35,7 +35,8 @@ def curve_fit(
         Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
         Use None for no bound. Default is None.
     sigma : array_like, optional
-        Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
+        Uncertainties (standard deviation) in ydata with shape (num_data,).
+        May be used depending on the noise distribution.
     absolute_sigma : bool, optional
         If True, sigma is used for covariance matrix calculation.
         If False, covariances are calculated from residuals.
@@ -64,9 +65,9 @@ def curve_fit(
     y_data = ydata
     params_init = p0
     param_bounds = bounds
-    is_sigma_absolute = absolute_sigma
+    sigma_y = sigma
+    is_sigma_y_absolute = absolute_sigma
     optimizer_kwargs["method"] = method
-    verbose = False
 
     if noise == "gaussian":
         MLE = GaussianMLE
@@ -75,15 +76,15 @@ def curve_fit(
     elif noise == "laplace":
         MLE = LaplaceMLE
 
-    estimator = MLE(model, verbose, **optimizer_kwargs)
+    estimator = MLE(model, **optimizer_kwargs)
 
     params, params_cov = estimator.fit(
         x_data,
         y_data,
         params_init,
         param_bounds,
-        sigma,
-        is_sigma_absolute,
+        sigma_y,
+        is_sigma_y_absolute,
     )
 
     popt = params

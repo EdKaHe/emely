@@ -11,7 +11,7 @@ class GaussianMLE(BaseMLE):
     (normal) distribution.
     """
 
-    def _sample_noise(self, x_data, y_data, sigma, is_sigma_absolute):
+    def _sample_noise(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
         """
         Return the noise samples from the noise distribution.
 
@@ -21,10 +21,11 @@ class GaussianMLE(BaseMLE):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
 
         Returns
@@ -33,12 +34,14 @@ class GaussianMLE(BaseMLE):
             Noise samples from the noise distribution. Shape (num_data,).
         """
 
-        scale_squared = self._scale_squared(x_data, y_data, sigma, is_sigma_absolute)
+        scale_squared = self._scale_squared(
+            x_data, y_data, sigma_y, is_sigma_y_absolute
+        )
         scale = np.sqrt(scale_squared)
 
         return norm.rvs(scale=scale)
 
-    def _negative_log_likelihood(self, x_data, y_data, params, sigma):
+    def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """
         Calculate the negative log-likelihood for Gaussian noise.
 
@@ -50,8 +53,9 @@ class GaussianMLE(BaseMLE):
             The dependent data.
         params : array_like
             Parameter values.
-        sigma : array_like, optional
-            Uncertainties in y_data. May be used depending on the noise distribution.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
 
         Returns
         -------
@@ -60,11 +64,13 @@ class GaussianMLE(BaseMLE):
         """
         y_pred = self.model(x_data, *params)
 
-        nll = np.sum((y_data - y_pred) ** 2 / sigma**2)
+        nll = 0.5 * np.sum(
+            (y_data - y_pred) ** 2 / sigma_y**2 - np.log(2 * np.pi * sigma_y**2)
+        )
 
         return nll
 
-    def _scale_squared(self, x_data, y_data, sigma, is_sigma_absolute):
+    def _scale_squared(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
         """
         Calculate the squared scale parameter of the noise distribution.
 
@@ -74,10 +80,11 @@ class GaussianMLE(BaseMLE):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
 
@@ -93,10 +100,12 @@ class GaussianMLE(BaseMLE):
 
         y_pred = self.model(x_data, *params)
 
-        scale_squared = sigma**2
-        if not is_sigma_absolute:
+        scale_squared = sigma_y**2
+        if not is_sigma_y_absolute:
             weight = (
-                1 / (num_data - num_params) * np.sum((y_data - y_pred) ** 2 / sigma**2)
+                1
+                / (num_data - num_params)
+                * np.sum((y_data - y_pred) ** 2 / sigma_y**2)
             )
             scale_squared = scale_squared * weight
 

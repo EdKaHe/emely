@@ -68,8 +68,8 @@ class BaseMLE(ABC):
         y_data,
         params_init,
         param_bounds,
-        sigma,
-        is_sigma_absolute,
+        sigma_y,
+        is_sigma_y_absolute,
         quantiles=None,
     ):
         """
@@ -82,14 +82,15 @@ class BaseMLE(ABC):
         y_data : array_like
             The dependent data with shape (num_data,).
         params_init : array_like, optional
-            Initial guess for the parameters with size num_params. Default is None.
+            Initial guess for the parameters. Shape (num_params,). Default is None.
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
         quantiles : tuple, optional
@@ -106,21 +107,22 @@ class BaseMLE(ABC):
             Initial parameter guess. Shape (num_params,).
         param_bounds : list or None
             Normalized parameter bounds. List of tuples, each with shape (num_params,).
-        sigma : ndarray
-            Normalized uncertainties. Shape (num_data,).
-        is_sigma_absolute : bool
-            Flag for absolute sigma usage.
+        sigma_y : ndarray
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+        is_sigma_y_absolute : bool
+            If True, sigma_y is used for covariance matrix calculation.
+            If False, covariances are calculated from residuals.
         quantiles : tuple or None
             Quantiles for confidence intervals.
         """
         x_data = np.atleast_2d(x_data)
 
-        if sigma is None and is_sigma_absolute:
-            raise ValueError("sigma must be provided if is_sigma_absolute=True")
-        if sigma is None:
-            sigma = np.ones_like(y_data)
-        if np.ndim(sigma) == 0:
-            sigma = np.full_like(y_data, sigma)
+        if sigma_y is None and is_sigma_y_absolute:
+            raise ValueError("sigma_y must be provided if is_sigma_y_absolute=True")
+        if sigma_y is None:
+            sigma_y = np.ones_like(y_data)
+        if np.ndim(sigma_y) == 0:
+            sigma_y = np.full_like(y_data, sigma_y)
 
         if param_bounds is not None:
             param_bounds = list(zip(*param_bounds))
@@ -136,8 +138,8 @@ class BaseMLE(ABC):
             y_data,
             params_init,
             param_bounds,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
             quantiles,
         )
 
@@ -147,8 +149,8 @@ class BaseMLE(ABC):
         y_data,
         params_init=None,
         param_bounds=None,
-        sigma=None,
-        is_sigma_absolute=False,
+        sigma_y=None,
+        is_sigma_y_absolute=False,
     ):
         """
         Perform maximum likelihood estimation fit.
@@ -165,10 +167,11 @@ class BaseMLE(ABC):
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
 
@@ -184,16 +187,16 @@ class BaseMLE(ABC):
             y_data,
             params_init,
             param_bounds,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
             _,
         ) = self._check_fit_args(
             x_data,
             y_data,
             params_init,
             param_bounds,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
         )
 
         self.params_init = params_init
@@ -202,13 +205,13 @@ class BaseMLE(ABC):
         self.params = self._estimate_parameters(
             x_data,
             y_data,
-            sigma,
+            sigma_y,
         )
         self.param_covs = self._estimate_covariances(
             x_data,
             y_data,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
         )
 
         return self.params, self.param_covs
@@ -219,8 +222,8 @@ class BaseMLE(ABC):
         y_data,
         params_init=None,
         param_bounds=None,
-        sigma=None,
-        is_sigma_absolute=False,
+        sigma_y=None,
+        is_sigma_y_absolute=False,
         num_samples=100,
         quantiles=(0.1, 0.9),
     ):
@@ -234,15 +237,16 @@ class BaseMLE(ABC):
         y_data : array_like
             The dependent data, nominally f(x_data, *params) with shape (num_data,).
         params_init : array_like, optional
-            Initial guess for the parameters with size num_params. Default is None.
+            Initial guess for the parameters. Shape (num_params,). Default is None.
             If None, parameters are initialized using stochastic search (differential_evolution).
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
         num_samples : int, optional
@@ -266,16 +270,16 @@ class BaseMLE(ABC):
             y_data,
             params_init,
             param_bounds,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
             quantiles,
         ) = self._check_fit_args(
             x_data,
             y_data,
             params_init,
             param_bounds,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
             quantiles,
         )
 
@@ -285,13 +289,13 @@ class BaseMLE(ABC):
         self.params = self._estimate_parameters(
             x_data,
             y_data,
-            sigma,
+            sigma_y,
         )
         params_mc = self._monte_carlo_samples(
             x_data,
             y_data,
-            sigma,
-            is_sigma_absolute,
+            sigma_y,
+            is_sigma_y_absolute,
             num_samples,
         )
         self.param_covs = np.cov(params_mc)
@@ -326,7 +330,7 @@ class BaseMLE(ABC):
         self,
         x_data,
         y_data,
-        sigma,
+        sigma_y,
     ):
         """
         Estimate the model parameters using the maximum likelihood estimation.
@@ -340,8 +344,9 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
 
         Returns
         -------
@@ -354,7 +359,7 @@ class BaseMLE(ABC):
 
             result = differential_evolution(
                 lambda params: self._negative_log_likelihood(
-                    x_data, y_data, params, sigma
+                    x_data, y_data, params, sigma_y
                 ),
                 bounds=self.param_bounds,
                 tol=self.optimizer_kwargs["tol"],
@@ -375,7 +380,9 @@ class BaseMLE(ABC):
             print("Estimating optimal parameters...")
 
         result = minimize(
-            lambda params: self._negative_log_likelihood(x_data, y_data, params, sigma),
+            lambda params: self._negative_log_likelihood(
+                x_data, y_data, params, sigma_y
+            ),
             x0=self.params_init,
             bounds=self.param_bounds,
             **self.optimizer_kwargs,
@@ -397,8 +404,8 @@ class BaseMLE(ABC):
         self,
         x_data,
         y_data,
-        sigma=None,
-        is_sigma_absolute=False,
+        sigma_y=None,
+        is_sigma_y_absolute=False,
     ):
         """
         Calculate the covariance matrix using the Cramér-Rao bound.
@@ -409,10 +416,11 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
 
@@ -422,7 +430,9 @@ class BaseMLE(ABC):
             Estimated covariance matrix. Shape (num_params, num_params).
         """
 
-        FIM = self._fisher_information_matrix(x_data, y_data, sigma, is_sigma_absolute)
+        FIM = self._fisher_information_matrix(
+            x_data, y_data, sigma_y, is_sigma_y_absolute
+        )
         try:
             param_covs = np.linalg.inv(FIM)
         except np.linalg.LinAlgError:
@@ -431,7 +441,7 @@ class BaseMLE(ABC):
         return param_covs
 
     def _fisher_information_matrix(
-        self, x_data, y_data, sigma=None, is_sigma_absolute=False
+        self, x_data, y_data, sigma_y=None, is_sigma_y_absolute=False
     ):
         """
         Calculate the Fisher information matrix.
@@ -442,10 +452,11 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,).
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
 
@@ -454,7 +465,9 @@ class BaseMLE(ABC):
         FIM : ndarray
             Fisher information matrix. Shape (num_params, num_params).
         """
-        scale_squared = self._scale_squared(x_data, y_data, sigma, is_sigma_absolute)
+        scale_squared = self._scale_squared(
+            x_data, y_data, sigma_y, is_sigma_y_absolute
+        )
 
         S_sq_inv = np.diag(1 / scale_squared)
         J = self._jacobian(x_data)
@@ -485,7 +498,7 @@ class BaseMLE(ABC):
         return J
 
     def _monte_carlo_samples(
-        self, x_data, y_data, sigma, is_sigma_absolute, num_samples
+        self, x_data, y_data, sigma_y, is_sigma_y_absolute, num_samples
     ):
         """
         Calculate the Monte Carlo samples of the model parameters for variance estimation.
@@ -496,10 +509,11 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
         num_samples : int
             Number of samples to use for the Monte Carlo estimation.
@@ -518,13 +532,15 @@ class BaseMLE(ABC):
         for ii in range(num_samples):
             y_pred = self.predict(x_data)
 
-            y_mc = y_pred + self._sample_noise(x_data, y_data, sigma, is_sigma_absolute)
-            params_mc[:, ii] = self._estimate_parameters(x_data, y_mc, sigma)
+            y_mc = y_pred + self._sample_noise(
+                x_data, y_data, sigma_y, is_sigma_y_absolute
+            )
+            params_mc[:, ii] = self._estimate_parameters(x_data, y_mc, sigma_y)
 
         return params_mc
 
     @abstractmethod
-    def _sample_noise(self, x_data, y_data, sigma, is_sigma_absolute):
+    def _sample_noise(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
         """
         Return the noise samples from the noise distribution.
 
@@ -534,11 +550,13 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
+
         Returns
         -------
         noise : ndarray
@@ -547,7 +565,7 @@ class BaseMLE(ABC):
         pass
 
     @abstractmethod
-    def _negative_log_likelihood(self, x_data, y_data, params, sigma):
+    def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """
         Calculate the negative log-likelihood.
 
@@ -562,8 +580,9 @@ class BaseMLE(ABC):
             The dependent data.
         params : array_like
             Parameter values.
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
 
         Returns
         -------
@@ -573,7 +592,7 @@ class BaseMLE(ABC):
         pass
 
     @abstractmethod
-    def _scale_squared(self, x_data, y_data, sigma, is_sigma_absolute):
+    def _scale_squared(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
         """
         Calculate the squared scale parameter of the noise distribution.
 
@@ -583,10 +602,11 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma : array_like, optional
-            Uncertainties in y_data with shape (num_data,). May be used depending on the noise distribution.
-        is_sigma_absolute : bool, optional
-            If True, sigma is used for covariance matrix calculation.
+        sigma_y : array_like, optional
+            Uncertainties (standard deviation) in y_data with shape (num_data,).
+            May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
 
