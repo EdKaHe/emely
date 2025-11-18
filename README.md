@@ -7,10 +7,10 @@ It provides a `scipy.optimize.curve_fit`-like interface built on top of `scipy.o
 
 ## Features
 
-- **MLE fitting** for Poisson, Gaussian, and Laplace noise  
+- **Parameter estimation** using MLE for Poisson, Gaussian, and Laplace noise 
+- **Parameter error estimation** using the Fisher information matrix   
 - `emely.curve_fit` provides a `scipy.optimize.curve_fit`-like interface  
-- Automatic **covariance matrix estimation** via the Fisher information matrix  
-- Object-oriented API with `BaseMLE`, `GaussianMLE`, `PoissonMLE`, and `LaplaceMLE` classes  
+- The underlying `BaseMLE` classes (`GaussianMLE`, `PoissonMLE`, `LaplaceMLE`) provide a modern object-oriented API
 
 ---
 
