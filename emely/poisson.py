@@ -38,9 +38,9 @@ class PoissonMLE(BaseMLE):
 
         return poisson.rvs(mu)
 
-    def _objective(self, x_data, y_data, params, sigma):
+    def _negative_log_likelihood(self, x_data, y_data, params, sigma):
         """
-        Calculate the objective function derived from the negative log-likelihood for Poisson noise.
+        Calculate the negative log-likelihood for Poisson noise.
 
         Parameters
         ----------
@@ -55,15 +55,15 @@ class PoissonMLE(BaseMLE):
 
         Returns
         -------
-        obj : float
-            Value of the objective function.
+        nll : float
+            Value of the negative log-likelihood.
         """
         y_pred = self.model(x_data, *params)
         y_pred = np.clip(y_pred, 1e-12, np.inf)
 
-        obj = -np.sum(y_data * np.log(y_pred) - y_pred)
+        nll = -np.sum(y_data * np.log(y_pred) - y_pred)
 
-        return obj
+        return nll
 
     def _scale_squared(self, x_data, y_data, sigma, is_sigma_absolute):
         """

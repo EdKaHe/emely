@@ -38,9 +38,9 @@ class LaplaceMLE(BaseMLE):
 
         return laplace.rvs(scale=scale)
 
-    def _objective(self, x_data, y_data, params, sigma):
+    def _negative_log_likelihood(self, x_data, y_data, params, sigma):
         """
-        Calculate the objective function derived from the negative log-likelihood for Laplace noise.
+        Calculate the negative log-likelihood for Laplace noise.
 
         Parameters
         ----------
@@ -55,14 +55,14 @@ class LaplaceMLE(BaseMLE):
 
         Returns
         -------
-        obj : float
-            Value of the objective function.
+        nll : float
+            Value of the negative log-likelihood.
         """
         y_pred = self.model(x_data, *params)
 
-        obj = np.sum(np.abs(y_data - y_pred) / sigma)
+        nll = np.sum(np.abs(y_data - y_pred) / sigma)
 
-        return obj
+        return nll
 
     def _scale_squared(self, x_data, y_data, sigma, is_sigma_absolute):
         """

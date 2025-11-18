@@ -161,6 +161,7 @@ class BaseMLE(ABC):
             The dependent data, nominally f(x_data, *params) with shape (num_data,).
         params_init : array_like, optional
             Initial guess for the parameters. Shape (num_params,). Default is None.
+            If None, parameters are initialized using stochastic search (differential_evolution).
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
@@ -234,6 +235,7 @@ class BaseMLE(ABC):
             The dependent data, nominally f(x_data, *params) with shape (num_data,).
         params_init : array_like, optional
             Initial guess for the parameters with size num_params. Default is None.
+            If None, parameters are initialized using stochastic search (differential_evolution).
         param_bounds : array_like, optional
             Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
             Use None for no bound. Default is None.
@@ -310,9 +312,15 @@ class BaseMLE(ABC):
         -------
         y_pred : ndarray
             Predicted dependent data. Shape (num_data,).
+        y_cov : ndarray
+            Covariance matrix of the predicted dependent data. Shape (num_data, num_data).
         """
 
-        return self.model(x_data, *self.params)
+        y_pred = self.model(x_data, *self.params)
+        J = self._jacobian(x_data)
+        y_cov = J @ self.param_covs @ J.T
+
+        return y_pred, y_cov
 
     def _estimate_parameters(
         self,
@@ -322,6 +330,9 @@ class BaseMLE(ABC):
     ):
         """
         Estimate the model parameters using the maximum likelihood estimation.
+
+        If params_init is None, parameters are first initialized using stochastic search
+        (differential_evolution) before refinement with the standard optimizer.
 
         Parameters
         ----------
@@ -338,27 +349,45 @@ class BaseMLE(ABC):
             Optimal parameter values. Shape (num_params,).
         """
         if self.params_init is None:
+            if self.verbose:
+                print("Estimating initial parameters...")
+
             result = differential_evolution(
-                lambda params: self._objective(x_data, y_data, params, sigma),
+                lambda params: self._negative_log_likelihood(
+                    x_data, y_data, params, sigma
+                ),
                 bounds=self.param_bounds,
                 tol=self.optimizer_kwargs["tol"],
                 polish=False,
             )
+
+            if self.verbose:
+                print("Initial parameters:", result.x)
+                print("Success:", result.success)
+                print("Iterations:", result.nit)
+                print("Function calls:", result.nfev)
+                print("Message:", result.message)
+                print("--------------------------------")
+
             self.params_init = result.x
 
+        if self.verbose:
+            print("Estimating optimal parameters...")
+
         result = minimize(
-            lambda params: self._objective(x_data, y_data, params, sigma),
+            lambda params: self._negative_log_likelihood(x_data, y_data, params, sigma),
             x0=self.params_init,
             bounds=self.param_bounds,
             **self.optimizer_kwargs,
         )
 
         if self.verbose:
-            print("Optimal params:", result.x)
+            print("Optimal parameters:", result.x)
             print("Success:", result.success)
             print("Iterations:", result.nit)
             print("Function calls:", result.nfev)
             print("Message:", result.message)
+            print("--------------------------------")
 
         params = result.x
 
@@ -518,12 +547,12 @@ class BaseMLE(ABC):
         pass
 
     @abstractmethod
-    def _objective(self, x_data, y_data, params, sigma):
+    def _negative_log_likelihood(self, x_data, y_data, params, sigma):
         """
-        Calculate the objective function derived from the negative log-likelihood
+        Calculate the negative log-likelihood.
 
         This method must be implemented by the subclass to define the specific
-        objective function for their noise distribution.
+        negative log-likelihood for their noise distribution.
 
         Parameters
         ----------
@@ -538,8 +567,8 @@ class BaseMLE(ABC):
 
         Returns
         -------
-        obj : float
-            Value of the objective function.
+        nll : float
+            Value of the negative log-likelihood.
         """
         pass
 
