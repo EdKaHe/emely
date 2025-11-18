@@ -105,8 +105,12 @@ class LaplaceMLE(BaseMLE):
         if not is_sigma_y_absolute:
             weight = (
                 2
-                / (num_data - num_params)
-                * (np.sum(np.abs(y_data - y_pred) / sigma_y)) ** 2
+                * (
+                    1
+                    / (num_data - num_params)
+                    * np.sum(np.abs(y_data - y_pred) / sigma_y)
+                )
+                ** 2
             )
             scale_squared = scale_squared * weight
 
