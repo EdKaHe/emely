@@ -75,6 +75,8 @@ def curve_fit(
         MLE = PoissonMLE
     elif noise == "laplace":
         MLE = LaplaceMLE
+    else:
+        raise ValueError(f'Invalid noise type "{noise}".')
 
     estimator = MLE(model, **optimizer_kwargs)
 

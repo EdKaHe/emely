@@ -70,7 +70,7 @@ plt.legend()
 
 ## Why MLE for parameter estimation?
 
-Maximum likelihood estimation (MLE) can correctly model different noise distribution, leading to more accurate and unbiased parameter estimates as compared to least-squares fitting, which is only optimal for Gaussian-distributed noise.
+Maximum likelihood estimation (MLE) can correctly model different noise distributions, leading to more accurate and unbiased parameter estimates as compared to least-squares fitting, which is only optimal for Gaussian-distributed noise.
 
 ## Examples
 
@@ -79,7 +79,7 @@ See the provided notebooks for detailed usage and comparisons:
 - **example_2.ipynb:** Fitting a 2D Gaussian signal with Poisson noise
 - **example_3.ipynb:** Fitting a 2D Gaussian signal with temporally changing width and Poisson noise
 - **example_4.ipynb:** Fitting 1D Gaussian signals with distinct Poisson noise to validate parameter covariances
-- **example_5.ipynb:** Fitting 1D Gaussian signals with Laplace noise to validate parameter covariances
+- **example_5.ipynb:** Fitting 2D Gaussian signals with distinct Poisson noise to validate parameter covariances
 
 These examples compare the accuracy of least-squares, Gaussian MLE, Poisson MLE, and Laplace MLE fits.
 

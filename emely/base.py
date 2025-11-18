@@ -73,7 +73,7 @@ class BaseMLE(ABC):
         quantiles=None,
     ):
         """
-        Check and normalize arguments for the fit and mcfit methods.
+        Check and normalize arguments for the fit and fit_mc methods.
 
         Parameters
         ----------
@@ -216,7 +216,7 @@ class BaseMLE(ABC):
 
         return self.params, self.param_covs
 
-    def mcfit(
+    def fit_mc(
         self,
         x_data,
         y_data,
@@ -228,7 +228,8 @@ class BaseMLE(ABC):
         quantiles=(0.1, 0.9),
     ):
         """
-        Perform maximum likelihood estimation fit with Monte Carlo sampling.
+        Perform maximum likelihood estimation fit with Monte Carlo sampling for
+        confidence interval estimation.
 
         Parameters
         ----------
@@ -265,6 +266,12 @@ class BaseMLE(ABC):
         param_confs : ndarray
             Estimated parameter confidence intervals. Shape (num_params, 2).
         """
+        raise NotImplementedError(
+            "fit_mc is not yet validated and is not available for use. "
+            "Please use the fit() method instead. This feature will be available "
+            "in a future release after validation is complete."
+        )
+
         (
             x_data,
             y_data,
