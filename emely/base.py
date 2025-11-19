@@ -10,8 +10,7 @@ class BaseMLE(ABC):
 
     This class provides common functionality for fitting models with different
     noise distributions (Poisson, Gaussian, Laplace, etc.). Subclasses should implement the
-    negative log-likelihood and the Cramér-Rao bound or the Monte Carlo method to
-    compute the covariance matrix.
+    negative log-likelihood and the Cramér-Rao bound to compute the covariance matrix.
     """
 
     def __init__(
@@ -43,7 +42,6 @@ class BaseMLE(ABC):
         self.param_bounds = None
         self.params = None
         self.param_covs = None
-        self.param_confs = None
         self.verbose = verbose
 
         default_optimizer_kwargs = {
@@ -70,10 +68,9 @@ class BaseMLE(ABC):
         param_bounds,
         sigma_y,
         is_sigma_y_absolute,
-        quantiles=None,
     ):
         """
-        Check and normalize arguments for the fit and fit_mc methods.
+        Check and normalize arguments for the fit method.
 
         Parameters
         ----------
@@ -93,9 +90,6 @@ class BaseMLE(ABC):
             If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
             Default is False.
-        quantiles : tuple, optional
-            The quantiles to estimate the parameter confidence intervals for.
-            Default is None.
 
         Returns
         -------
@@ -112,8 +106,6 @@ class BaseMLE(ABC):
         is_sigma_y_absolute : bool
             If True, sigma_y is used for covariance matrix calculation.
             If False, covariances are calculated from residuals.
-        quantiles : tuple or None
-            Quantiles for confidence intervals.
         """
         x_data = np.atleast_2d(x_data)
 
@@ -140,7 +132,6 @@ class BaseMLE(ABC):
             param_bounds,
             sigma_y,
             is_sigma_y_absolute,
-            quantiles,
         )
 
     def fit(
@@ -189,7 +180,6 @@ class BaseMLE(ABC):
             param_bounds,
             sigma_y,
             is_sigma_y_absolute,
-            _,
         ) = self._check_fit_args(
             x_data,
             y_data,
@@ -215,100 +205,6 @@ class BaseMLE(ABC):
         )
 
         return self.params, self.param_covs
-
-    def fit_mc(
-        self,
-        x_data,
-        y_data,
-        params_init=None,
-        param_bounds=None,
-        sigma_y=None,
-        is_sigma_y_absolute=False,
-        num_samples=100,
-        quantiles=(0.1, 0.9),
-    ):
-        """
-        Perform maximum likelihood estimation fit with Monte Carlo sampling for
-        confidence interval estimation.
-
-        Parameters
-        ----------
-        x_data : array_like
-            The independent variable with shape (num_vars, num_data).
-        y_data : array_like
-            The dependent data, nominally f(x_data, *params) with shape (num_data,).
-        params_init : array_like, optional
-            Initial guess for the parameters. Shape (num_params,). Default is None.
-            If None, parameters are initialized using stochastic search (differential_evolution).
-        param_bounds : array_like, optional
-            Bounds for the parameters as (lower_bounds, upper_bounds), each with shape (num_params,).
-            Use None for no bound. Default is None.
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
-            Default is False.
-        num_samples : int, optional
-            Number of samples to use for the Monte Carlo estimation.
-            Default is 100.
-        quantiles : tuple, optional
-            The quantiles to estimate the parameter confidence intervals for.
-            Default is (0.1, 0.9).
-
-        Returns
-        -------
-        params : ndarray
-            Optimal parameter values. Shape (num_params,).
-        param_covs : ndarray
-            Estimated covariance matrix. Shape (num_params, num_params).
-        param_confs : ndarray
-            Estimated parameter confidence intervals. Shape (num_params, 2).
-        """
-        raise NotImplementedError(
-            "fit_mc is not yet validated and is not available for use. "
-            "Please use the fit() method instead. This feature will be available "
-            "in a future release after validation is complete."
-        )
-
-        (
-            x_data,
-            y_data,
-            params_init,
-            param_bounds,
-            sigma_y,
-            is_sigma_y_absolute,
-            quantiles,
-        ) = self._check_fit_args(
-            x_data,
-            y_data,
-            params_init,
-            param_bounds,
-            sigma_y,
-            is_sigma_y_absolute,
-            quantiles,
-        )
-
-        self.params_init = params_init
-        self.param_bounds = param_bounds
-
-        self.params = self._estimate_parameters(
-            x_data,
-            y_data,
-            sigma_y,
-        )
-        params_mc = self._monte_carlo_samples(
-            x_data,
-            y_data,
-            sigma_y,
-            is_sigma_y_absolute,
-            num_samples,
-        )
-        self.param_covs = np.cov(params_mc)
-        self.param_confs = np.quantile(params_mc, quantiles, axis=1)
-
-        return self.params, self.param_covs, self.param_confs
 
     def predict(self, x_data):
         """
@@ -503,73 +399,6 @@ class BaseMLE(ABC):
         J = jacobian(params)
 
         return J
-
-    def _monte_carlo_samples(
-        self, x_data, y_data, sigma_y, is_sigma_y_absolute, num_samples
-    ):
-        """
-        Calculate the Monte Carlo samples of the model parameters for variance estimation.
-
-        Parameters
-        ----------
-        x_data : array_like
-            The independent variable with shape (num_vars, num_data).
-        y_data : array_like
-            The dependent data with shape (num_data,).
-        sigma_y : array_like
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
-        num_samples : int
-            Number of samples to use for the Monte Carlo estimation.
-
-        Returns
-        -------
-        params_mc : ndarray
-            Monte Carlo samples of the model parameters for variance estimation.
-            Shape (num_params, num_samples).
-        """
-        params = self.params
-
-        num_params = len(params)
-
-        params_mc = np.zeros((num_params, num_samples))
-        for ii in range(num_samples):
-            y_pred = self.predict(x_data)
-
-            y_mc = y_pred + self._sample_noise(
-                x_data, y_data, sigma_y, is_sigma_y_absolute
-            )
-            params_mc[:, ii] = self._estimate_parameters(x_data, y_mc, sigma_y)
-
-        return params_mc
-
-    @abstractmethod
-    def _sample_noise(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
-        """
-        Return the noise samples from the noise distribution.
-
-        Parameters
-        ----------
-        x_data : array_like
-            The independent variable with shape (num_vars, num_data).
-        y_data : array_like
-            The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
-
-        Returns
-        -------
-        noise : ndarray
-            Noise samples from the noise distribution. Shape (num_data,).
-        """
-        pass
 
     @abstractmethod
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):

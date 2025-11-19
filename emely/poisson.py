@@ -12,36 +12,6 @@ class PoissonMLE(BaseMLE):
     distribution.
     """
 
-    def _sample_noise(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
-        """
-        Return the noise samples from the noise distribution.
-
-        Parameters
-        ----------
-        x_data : array_like
-            The independent variable with shape (num_vars, num_data).
-        y_data : array_like
-            The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
-
-        Returns
-        -------
-        noise : ndarray
-            Noise samples from the noise distribution. Shape (num_data,).
-        """
-
-        scale_squared = self._scale_squared(
-            x_data, y_data, sigma_y, is_sigma_y_absolute
-        )
-        mu = scale_squared
-
-        return poisson.rvs(mu)
-
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """
         Calculate the negative log-likelihood for Poisson noise.
