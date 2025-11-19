@@ -66,7 +66,7 @@ class LaplaceMLE(BaseMLE):
 
         nll = np.sum(
             np.sqrt(2) * np.abs(y_data - y_pred) / sigma_y
-            - np.log(np.sqrt(2) * sigma_y)
+            + np.log(np.sqrt(2) * sigma_y)
         )
 
         return nll
