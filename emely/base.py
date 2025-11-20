@@ -116,7 +116,7 @@ class BaseMLE(ABC):
         if np.ndim(sigma_y) == 0:
             sigma_y = np.full_like(y_data, sigma_y)
 
-        if not self._is_semi_analytical and not is_sigma_y_absolute:
+        if not self.is_semi_analytical and not is_sigma_y_absolute:
             raise ValueError(
                 f"{self.__class__.__name__} requires is_sigma_y_absolute=True."
             )
@@ -376,7 +376,7 @@ class BaseMLE(ABC):
         FIM : ndarray
             Fisher information matrix. Shape (num_params, num_params).
         """
-        if self._is_semi_analytical:
+        if self.is_semi_analytical:
             scale_squared = self._scale_squared(
                 x_data, y_data, sigma_y, is_sigma_y_absolute
             )
@@ -449,5 +449,24 @@ class BaseMLE(ABC):
         -------
         scale_squared : ndarray
             Squared scale parameter of the noise distribution. Shape (num_data,).
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def is_semi_analytical(self):
+        """
+        Indicates whether the noise model supports a semi-analytical computation of the
+        Fisher Information Matrix. If True, the FIM is evaluated using
+
+            Jᵀ @ diag(1 / s^2) @ J,
+
+        where J is the numerical Jacobian of the model. If False, the FIM is obtained
+        via a numerical Hessian of the negative log-likelihood requiring is_sigma_y_absolute=True.
+
+        Returns
+        -------
+        bool
+            True if semi-analytical FIM computation is supported, False otherwise.
         """
         pass

@@ -8,10 +8,11 @@ class LaplaceMLE(BaseMLE):
 
     This class implements MLE fitting assuming the data follows a Laplace
     distribution.
+    """
 
-    Attributes
-    ----------
-    _is_semi_analytical : bool
+    @property
+    def is_semi_analytical(self):
+        """
         Indicates whether the noise model supports a semi-analytical computation of the
         Fisher Information Matrix. If True, the FIM is evaluated using
 
@@ -19,9 +20,13 @@ class LaplaceMLE(BaseMLE):
 
         where J is the numerical Jacobian of the model. If False, the FIM is obtained
         via a numerical Hessian of the negative log-likelihood requiring is_sigma_y_absolute=True.
-    """
 
-    _is_semi_analytical = True
+        Returns
+        -------
+        bool
+            True, indicating semi-analytical FIM computation is supported.
+        """
+        return True
 
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """

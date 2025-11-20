@@ -9,10 +9,11 @@ class FoldedGaussianMLE(BaseMLE):
 
     This class implements MLE fitting assuming the data follows a folded Gaussian
     (folded normal) distribution.
+    """
 
-    Attributes
-    ----------
-    _is_semi_analytical : bool
+    @property
+    def is_semi_analytical(self):
+        """
         Indicates whether the noise model supports a semi-analytical computation of the
         Fisher Information Matrix. If True, the FIM is evaluated using
 
@@ -20,9 +21,13 @@ class FoldedGaussianMLE(BaseMLE):
 
         where J is the numerical Jacobian of the model. If False, the FIM is obtained
         via a numerical Hessian of the negative log-likelihood requiring is_sigma_y_absolute=True.
-    """
 
-    _is_semi_analytical = False
+        Returns
+        -------
+        bool
+            False, indicating semi-analytical FIM computation is not supported.
+        """
+        return False
 
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """
