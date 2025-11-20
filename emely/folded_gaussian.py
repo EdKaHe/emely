@@ -1,13 +1,14 @@
 import numpy as np
 from .base import BaseMLE
+from scipy.stats import foldnorm
 
 
-class GaussianMLE(BaseMLE):
+class FoldedGaussianMLE(BaseMLE):
     """
-    Maximum likelihood estimation for Gaussian noise distribution.
+    Maximum likelihood estimation for folded Gaussian noise distribution.
 
-    This class implements MLE fitting assuming the data follows a Gaussian
-    (normal) distribution.
+    This class implements MLE fitting assuming the data follows a folded Gaussian
+    (folded normal) distribution.
 
     Attributes
     ----------
@@ -21,11 +22,11 @@ class GaussianMLE(BaseMLE):
         via a numerical Hessian of the negative log-likelihood requiring is_sigma_y_absolute=True.
     """
 
-    _is_semi_analytical = True
+    _is_semi_analytical = False
 
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
         """
-        Calculate the negative log-likelihood for Gaussian noise.
+        Calculate the negative log-likelihood for folded Gaussian noise.
 
         Parameters
         ----------
@@ -46,9 +47,7 @@ class GaussianMLE(BaseMLE):
         """
         y_pred = self.model(x_data, *params)
 
-        nll = 0.5 * np.sum(
-            (y_data - y_pred) ** 2 / sigma_y**2 - np.log(2 * np.pi * sigma_y**2)
-        )
+        nll = -np.sum(foldnorm.logpdf(y_data, c=y_pred / sigma_y, scale=sigma_y, loc=0))
 
         return nll
 
@@ -74,21 +73,10 @@ class GaussianMLE(BaseMLE):
         -------
         scale_squared : ndarray
             Squared scale parameter of the noise distribution. Shape (num_data,).
+
+        Raises
+        ------
+        NotImplementedError
+            This method is not implemented for folded Gaussian noise.
         """
-        params = self.params
-
-        _, num_data = np.shape(x_data)
-        num_params = len(params)
-
-        y_pred = self.model(x_data, *params)
-
-        scale_squared = sigma_y**2
-        if not is_sigma_y_absolute:
-            weight = (
-                1
-                / (num_data - num_params)
-                * np.sum((y_data - y_pred) ** 2 / sigma_y**2)
-            )
-            scale_squared = scale_squared * weight
-
-        return scale_squared
+        raise NotImplementedError()

@@ -116,6 +116,11 @@ class BaseMLE(ABC):
         if np.ndim(sigma_y) == 0:
             sigma_y = np.full_like(y_data, sigma_y)
 
+        if not self._is_semi_analytical and not is_sigma_y_absolute:
+            raise ValueError(
+                f"{self.__class__.__name__} requires is_sigma_y_absolute=True."
+            )
+
         if param_bounds is not None:
             param_bounds = list(zip(*param_bounds))
         if params_init is None and (
@@ -224,7 +229,10 @@ class BaseMLE(ABC):
         """
 
         y_pred = self.model(x_data, *self.params)
-        J = self._jacobian(x_data)
+
+        model = lambda params: self.model(x_data, *params)
+        J = nd.Jacobian(model, method="complex", step=1e-15)(self.params)
+
         y_cov = J @ self.param_covs @ J.T
 
         return y_pred, y_cov
@@ -368,37 +376,28 @@ class BaseMLE(ABC):
         FIM : ndarray
             Fisher information matrix. Shape (num_params, num_params).
         """
-        scale_squared = self._scale_squared(
-            x_data, y_data, sigma_y, is_sigma_y_absolute
-        )
+        if self._is_semi_analytical:
+            scale_squared = self._scale_squared(
+                x_data, y_data, sigma_y, is_sigma_y_absolute
+            )
+            S_sq_inv = np.diag(1 / scale_squared)
 
-        S_sq_inv = np.diag(1 / scale_squared)
-        J = self._jacobian(x_data)
-        FIM = J.T @ S_sq_inv @ J
+            model = lambda params: self.model(x_data, *params)
+
+            J = nd.Jacobian(model, method="complex", step=1e-15)(self.params)
+            FIM = J.T @ S_sq_inv @ J
+        else:
+            nll = lambda params: self._negative_log_likelihood(
+                x_data, y_data, params, sigma_y
+            )
+
+            # logpdf doesn't accept complex numbers
+            H = nd.Hessian(nll, method="central", step=np.sqrt(np.finfo(float).eps))(
+                self.params
+            )
+            FIM = H
 
         return FIM
-
-    def _jacobian(self, x_data):
-        """
-        Calculate the Jacobian matrix numerically.
-
-        Parameters
-        ----------
-        x_data : array_like
-            The independent variable with shape (num_vars, num_data).
-
-        Returns
-        -------
-        J : ndarray
-            Jacobian matrix. Shape (num_data, num_params).
-        """
-        params = self.params
-        jacobian = nd.Jacobian(
-            lambda p: self.model(x_data, *p), method="complex", step=1e-15
-        )
-        J = jacobian(params)
-
-        return J
 
     @abstractmethod
     def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):

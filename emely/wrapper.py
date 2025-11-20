@@ -1,6 +1,7 @@
 from .gaussian import GaussianMLE
 from .poisson import PoissonMLE
 from .laplace import LaplaceMLE
+from .folded_gaussian import FoldedGaussianMLE
 
 
 def curve_fit(
@@ -43,11 +44,12 @@ def curve_fit(
     method : str, optional
         Optimization method for scipy.optimize.minimize. Default is "nelder-mead".
         This parameter takes precedence over any `method` specified in `optimizer_kwargs`.
-    noise : {"gaussian", "poisson", "laplace"}, optional
+    noise : {"gaussian", "poisson", "laplace", "folded-gaussian"}, optional
         Noise type for maximum likelihood estimation. Default is "gaussian".
         - "gaussian": Assumes a Gaussian (normal) noise distribution
         - "poisson": Assumes a Poisson noise distribution
         - "laplace": Assumes a Laplace noise distribution
+        - "folded-gaussian": Assumes a folded Gaussian (folded normal) noise distribution
     **optimizer_kwargs
         Additional keyword arguments passed to scipy.optimize.minimize.
         Note: The `method` parameter will override any `method` key in `optimizer_kwargs`.
@@ -75,6 +77,8 @@ def curve_fit(
         MLE = PoissonMLE
     elif noise == "laplace":
         MLE = LaplaceMLE
+    elif noise == "folded-gaussian":
+        MLE = FoldedGaussianMLE
     else:
         raise ValueError(f'Invalid noise type "{noise}".')
 

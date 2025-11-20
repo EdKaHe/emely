@@ -1,16 +1,16 @@
 # Emely
 
 **Emely** is a lightweight Python package for **maximum likelihood estimation (MLE)**–based parameter fitting.  
-It provides a `scipy.optimize.curve_fit`-like interface built on top of `scipy.optimize.minimize`, with support for **Poisson**, **Gaussian**, and **Laplace** noise models.
+It provides a `scipy.optimize.curve_fit`-like interface built on top of `scipy.optimize.minimize`, with support for **Poisson**, **Gaussian**, **Laplace**, and **Folded Gaussian** noise models.
 
 ---
 
 ## Features
 
-- **Parameter estimation** using MLE for Poisson, Gaussian, and Laplace noise 
+- **Parameter estimation** using MLE for Poisson, Gaussian, Laplace, and Folded Gaussian noise 
 - **Parameter error estimation** using the Fisher information matrix   
 - `emely.curve_fit` provides a `scipy.optimize.curve_fit`-like interface  
-- The underlying `BaseMLE` classes (`GaussianMLE`, `PoissonMLE`, `LaplaceMLE`) provide a modern object-oriented API
+- The underlying `BaseMLE` classes (`GaussianMLE`, `PoissonMLE`, `LaplaceMLE`, `FoldedGaussianMLE`) provide a modern object-oriented API
 
 ---
 

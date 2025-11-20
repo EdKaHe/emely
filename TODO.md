@@ -2,13 +2,9 @@
 
 ## Features
 
-- [ ] **Add further noise models**: E.g. Rice, Rayleigh, or folded Gaussian distribution.
+- [ ] **Add further noise models**: E.g. Rice or Rayleigh distribution.
 
-- [ ] **Get NLL from sum(logpdf)**: Wherever no analytical solution exists, calculate the NLL from the sum of the NLL.
-
-- [ ] **FIM from NLL**: Calculate the FIM directly from the NLL.
-
-- [ ] **Numerical scale_squared**: Estimate the scale_squared numerically through minimization of the NLL wherever no analytical solution exists.
+- [ ] **Numerical scale_squared**: Estimate the scale_squared numerically through minimization of the NLL for non-semi-analytical models.
 
 - [ ] **Support for x-axis uncertainties (σₓ)**: Extend the MLE framework to account for measurement errors in the independent variable (x-axis), not just the dependent variable (y-axis).
 
