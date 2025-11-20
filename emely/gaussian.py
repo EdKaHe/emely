@@ -84,11 +84,11 @@ class GaussianMLE(BaseMLE):
 
         scale_squared = sigma_y**2
         if not is_sigma_y_absolute:
-            weight = (
+            weight_squared = (
                 1
                 / (num_data - num_params)
                 * np.sum((y_data - y_pred) ** 2 / sigma_y**2)
             )
-            scale_squared = scale_squared * weight
+            scale_squared = scale_squared * weight_squared
 
         return scale_squared

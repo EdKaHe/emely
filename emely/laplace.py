@@ -85,7 +85,7 @@ class LaplaceMLE(BaseMLE):
 
         scale_squared = sigma_y**2 / 2
         if not is_sigma_y_absolute:
-            weight = (
+            weight_squared = (
                 2
                 * (
                     1
@@ -94,6 +94,6 @@ class LaplaceMLE(BaseMLE):
                 )
                 ** 2
             )
-            scale_squared = scale_squared * weight
+            scale_squared = scale_squared * weight_squared
 
         return scale_squared
