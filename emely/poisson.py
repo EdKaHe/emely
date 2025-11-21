@@ -93,4 +93,6 @@ class PoissonMLE(BaseMLE):
         y_pred = self.model(x_data, *params)
         y_pred = np.clip(y_pred, 1e-12, np.inf)
 
+        self.sigma_y = np.sqrt(y_pred)
+
         return y_pred

@@ -105,6 +105,11 @@ class LaplaceMLE(BaseMLE):
                 )
                 ** 2
             )
+
             scale_squared = scale_squared * weight_squared
+
+            self.sigma_y = np.sqrt(weight_squared) * sigma_y
+        else:
+            self.sigma_y = sigma_y
 
         return scale_squared

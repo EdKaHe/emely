@@ -100,6 +100,11 @@ class GaussianMLE(BaseMLE):
                 / (num_data - num_params)
                 * np.sum((y_data - y_pred) ** 2 / sigma_y**2)
             )
+
             scale_squared = scale_squared * weight_squared
+
+            self.sigma_y = np.sqrt(weight_squared) * sigma_y
+        else:
+            self.sigma_y = sigma_y
 
         return scale_squared

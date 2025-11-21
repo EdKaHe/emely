@@ -43,6 +43,7 @@ class BaseMLE(ABC):
         self.param_bounds = None
         self.params = None
         self.param_covs = None
+        self.sigma_y = None
         self.verbose = verbose
 
         default_optimizer_kwargs = {
@@ -235,8 +236,11 @@ class BaseMLE(ABC):
         )
 
         if not self.is_semi_analytical and not is_sigma_y_absolute:
+            self.sigma_y = self.params[-1] * sigma_y
             self.params = self.params[:-1]
             self.param_covs = self.param_covs[:-1, :-1]
+        if not self.is_semi_analytical and is_sigma_y_absolute:
+            self.sigma_y = sigma_y
 
         return self.params, self.param_covs
 
