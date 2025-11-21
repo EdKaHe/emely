@@ -30,7 +30,9 @@ class PoissonMLE(BaseMLE):
         """
         return True
 
-    def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
+    def _negative_log_likelihood(
+        self, x_data, y_data, params, sigma_y, is_sigma_y_absolute
+    ):
         """
         Calculate the negative log-likelihood for Poisson noise.
 
@@ -45,6 +47,10 @@ class PoissonMLE(BaseMLE):
         sigma_y : array_like, optional
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
+            Default is False.
 
         Returns
         -------
@@ -73,8 +79,8 @@ class PoissonMLE(BaseMLE):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns

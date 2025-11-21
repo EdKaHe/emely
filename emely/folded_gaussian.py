@@ -29,7 +29,9 @@ class FoldedGaussianMLE(BaseMLE):
         """
         return False
 
-    def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
+    def _negative_log_likelihood(
+        self, x_data, y_data, params, sigma_y, is_sigma_y_absolute
+    ):
         """
         Calculate the negative log-likelihood for folded Gaussian noise.
 
@@ -44,13 +46,21 @@ class FoldedGaussianMLE(BaseMLE):
         sigma_y : array_like, optional
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
+            Default is False.
 
         Returns
         -------
         nll : float
             Value of the negative log-likelihood.
         """
-        y_pred = self.model(x_data, *params)
+        if is_sigma_y_absolute:
+            y_pred = self.model(x_data, *params)
+        else:
+            y_pred = self.model(x_data, *params[:-1])
+            sigma_y = params[-1] * sigma_y
 
         nll = -np.sum(foldnorm.logpdf(y_data, c=y_pred / sigma_y, scale=sigma_y, loc=0))
 
@@ -70,8 +80,8 @@ class FoldedGaussianMLE(BaseMLE):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns

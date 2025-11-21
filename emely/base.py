@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize, differential_evolution
+from scipy.stats import median_abs_deviation
 import numdifftools as nd
 from abc import ABC, abstractmethod
 
@@ -87,8 +88,8 @@ class BaseMLE(ABC):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns
@@ -104,31 +105,54 @@ class BaseMLE(ABC):
         sigma_y : ndarray
             Uncertainties (standard deviation) in y_data with shape (num_data,).
         is_sigma_y_absolute : bool
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
         """
         x_data = np.atleast_2d(x_data)
 
         if sigma_y is None and is_sigma_y_absolute:
             raise ValueError("sigma_y must be provided if is_sigma_y_absolute=True")
-        if sigma_y is None:
-            sigma_y = np.ones_like(y_data)
-        if np.ndim(sigma_y) == 0:
-            sigma_y = np.full_like(y_data, sigma_y)
 
-        if not self.is_semi_analytical and not is_sigma_y_absolute:
-            raise ValueError(
-                f"{self.__class__.__name__} requires is_sigma_y_absolute=True."
-            )
+        if sigma_y is None:
+            sigma_y = np.ones_like(y_data, dtype=float)
+
+        if np.ndim(sigma_y) == 0:
+            sigma_y = np.full_like(y_data, sigma_y, dtype=float)
+
+        if not is_sigma_y_absolute:
+            sigma_y /= np.mean(sigma_y)
+
+            dy_data = np.diff(y_data)
+            weight = 1.4826 * median_abs_deviation(dy_data, scale=1)
+
+        num_params = None
+
+        if params_init is not None:
+            num_params = len(params_init)
 
         if param_bounds is not None:
             param_bounds = list(zip(*param_bounds))
-        if params_init is None and (
-            param_bounds is None or np.any(~np.isfinite(param_bounds))
-        ):
+            if num_params is None:
+                num_params = len(param_bounds)
+
+        if num_params is None:
             raise ValueError(
-                "Finite parameter bounds must be provided if no initial parameters are provided."
+                "Either initial parameters or parameter bounds must be provided."
             )
+
+        if params_init is None:
+            if not np.all(np.isfinite(param_bounds)):
+                raise ValueError(
+                    "Finite parameter bounds must be provided if no initial parameters are provided."
+                )
+            params_init = [None] * num_params
+
+        if param_bounds is None:
+            param_bounds = [(None, None)] * num_params
+
+        if not self.is_semi_analytical and not is_sigma_y_absolute:
+            params_init = list(params_init) + [weight]
+            param_bounds = list(param_bounds) + [(1e-3 * weight, 1e3 * weight)]
 
         return (
             x_data,
@@ -167,8 +191,8 @@ class BaseMLE(ABC):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns
@@ -201,6 +225,7 @@ class BaseMLE(ABC):
             x_data,
             y_data,
             sigma_y,
+            is_sigma_y_absolute,
         )
         self.param_covs = self._estimate_covariances(
             x_data,
@@ -208,6 +233,10 @@ class BaseMLE(ABC):
             sigma_y,
             is_sigma_y_absolute,
         )
+
+        if not self.is_semi_analytical and not is_sigma_y_absolute:
+            self.params = self.params[:-1]
+            self.param_covs = self.param_covs[:-1, :-1]
 
         return self.params, self.param_covs
 
@@ -242,6 +271,7 @@ class BaseMLE(ABC):
         x_data,
         y_data,
         sigma_y,
+        is_sigma_y_absolute,
     ):
         """
         Estimate the model parameters using the maximum likelihood estimation.
@@ -258,20 +288,26 @@ class BaseMLE(ABC):
         sigma_y : array_like, optional
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
+            Default is False.
 
         Returns
         -------
         params : ndarray
             Optimal parameter values. Shape (num_params,).
         """
-        if self.params_init is None:
+        objective = lambda params: self._negative_log_likelihood(
+            x_data, y_data, params, sigma_y, is_sigma_y_absolute
+        )
+
+        if np.any([p_i is None for p_i in self.params_init]):
             if self.verbose:
                 print("Estimating initial parameters...")
 
             result = differential_evolution(
-                lambda params: self._negative_log_likelihood(
-                    x_data, y_data, params, sigma_y
-                ),
+                objective,
                 bounds=self.param_bounds,
                 tol=self.optimizer_kwargs["tol"],
                 polish=False,
@@ -291,9 +327,7 @@ class BaseMLE(ABC):
             print("Estimating optimal parameters...")
 
         result = minimize(
-            lambda params: self._negative_log_likelihood(
-                x_data, y_data, params, sigma_y
-            ),
+            objective,
             x0=self.params_init,
             bounds=self.param_bounds,
             **self.optimizer_kwargs,
@@ -331,8 +365,8 @@ class BaseMLE(ABC):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns
@@ -367,8 +401,8 @@ class BaseMLE(ABC):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns
@@ -388,7 +422,7 @@ class BaseMLE(ABC):
             FIM = J.T @ S_sq_inv @ J
         else:
             nll = lambda params: self._negative_log_likelihood(
-                x_data, y_data, params, sigma_y
+                x_data, y_data, params, sigma_y, is_sigma_y_absolute
             )
 
             # logpdf doesn't accept complex numbers
@@ -400,7 +434,9 @@ class BaseMLE(ABC):
         return FIM
 
     @abstractmethod
-    def _negative_log_likelihood(self, x_data, y_data, params, sigma_y):
+    def _negative_log_likelihood(
+        self, x_data, y_data, params, sigma_y, is_sigma_y_absolute
+    ):
         """
         Calculate the negative log-likelihood.
 
@@ -418,6 +454,10 @@ class BaseMLE(ABC):
         sigma_y : array_like, optional
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
+        is_sigma_y_absolute : bool, optional
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
+            Default is False.
 
         Returns
         -------
@@ -441,8 +481,8 @@ class BaseMLE(ABC):
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
         is_sigma_y_absolute : bool, optional
-            If True, sigma_y is used for covariance matrix calculation.
-            If False, covariances are calculated from residuals.
+            If True, sigma_y is the absolute standard deviation of the noise.
+            If False, the absolute standard deviation is estimated from the data.
             Default is False.
 
         Returns

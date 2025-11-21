@@ -39,8 +39,9 @@ def curve_fit(
         Uncertainties (standard deviation) in ydata with shape (num_data,).
         May be used depending on the noise distribution.
     absolute_sigma : bool, optional
-        If True, sigma is used for covariance matrix calculation.
-        If False, covariances are calculated from residuals.
+        If True, sigma is the absolute standard deviation of the noise.
+        If False, the absolute standard deviation is estimated from the data.
+        Default is False.
     method : str, optional
         Optimization method for scipy.optimize.minimize. Default is "nelder-mead".
         This parameter takes precedence over any `method` specified in `optimizer_kwargs`.
