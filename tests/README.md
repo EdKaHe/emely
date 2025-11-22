@@ -18,3 +18,6 @@ The `tests/` folder contains validation notebooks organized by noise type and te
 - **Purpose**: Validates the predicted value and covariance of the dependent variable
 - **Model**: Lorentzian function
 
+## Test 5: Deviance comparison across estimators
+- **Purpose**: Compares deviance of different estimators when fitting data with a specific noise distribution
+- **Model**: Lorentzian function

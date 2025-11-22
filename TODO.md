@@ -4,7 +4,7 @@
 
 - [ ] **Add further noise models**: E.g. Rice or Rayleigh distribution.
 
-- [ ] **Write tests for absolute sigma_y estimates**: Add test #5 to test the estimated absolute sigma_y
+- [ ] **Write tests for absolute sigma_y estimates**: Add a new test to validate the estimated absolute sigma_y
 
 - [ ] **Support for x-axis uncertainties (σₓ)**: Extend the MLE framework to account for measurement errors in the independent variable (x-axis), not just the dependent variable (y-axis).
 

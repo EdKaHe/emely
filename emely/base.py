@@ -38,12 +38,13 @@ class BaseMLE(ABC):
             Any additional keyword arguments are also passed through to
             scipy.optimize.minimize. User-provided values override the defaults.
         """
-        self.model = self._wrap_model(model)
-        self.params_init = None
-        self.param_bounds = None
-        self.params = None
-        self.param_covs = None
-        self.sigma_y = None
+        self._model = self._wrap_model(model)
+        self._params_init = None
+        self._param_bounds = None
+        self._params = None
+        self._param_covs = None
+        self._sigma_y = None
+        self._is_sigma_y_absolute = None
         self.verbose = verbose
 
         default_optimizer_kwargs = {
@@ -51,6 +52,46 @@ class BaseMLE(ABC):
             "tol": 1e-9,
         }
         self.optimizer_kwargs = {**default_optimizer_kwargs, **optimizer_kwargs}
+
+    @property
+    def model(self):
+        """The wrapped model function."""
+        return self._model
+
+    @property
+    def params_init(self):
+        """Initial parameter guess used for optimization."""
+        return self._params_init
+
+    @property
+    def param_bounds(self):
+        """Parameter bounds used for optimization."""
+        return self._param_bounds
+
+    @property
+    def params(self):
+        """Optimal parameter values from the fit."""
+        return self._params
+
+    @property
+    def param_covs(self):
+        """Parameter covariance matrix from the fit."""
+        return self._param_covs
+
+    @property
+    def sigma_y(self):
+        """Uncertainties (standard deviation) in y_data."""
+        return self._sigma_y
+
+    @property
+    def is_sigma_y_absolute(self):
+        """If True, sigma_y is the absolute standard deviation of the noise."""
+        return self._is_sigma_y_absolute
+
+    @property
+    def deviance(self):
+        """Deviance of the fit."""
+        return self._deviance
 
     @staticmethod
     def _wrap_model(model):
@@ -153,7 +194,7 @@ class BaseMLE(ABC):
 
         if not self.is_semi_analytical and not is_sigma_y_absolute:
             params_init = list(params_init) + [weight]
-            param_bounds = list(param_bounds) + [(1e-3 * weight, 1e3 * weight)]
+            param_bounds = list(param_bounds) + [(1e-2 * weight, 1e2 * weight)]
 
         return (
             x_data,
@@ -219,28 +260,27 @@ class BaseMLE(ABC):
             is_sigma_y_absolute,
         )
 
-        self.params_init = params_init
-        self.param_bounds = param_bounds
+        self._params_init = params_init
+        self._param_bounds = param_bounds
+        self._sigma_y = sigma_y
+        self._is_sigma_y_absolute = is_sigma_y_absolute
 
-        self.params = self._estimate_parameters(
+        has_fitted_weight = not self.is_semi_analytical and not is_sigma_y_absolute
+
+        self._params = self._estimate_parameters(x_data, y_data)
+
+        self._sigma_y = self._estimate_absolute_sigma_y(x_data, y_data)
+        self._is_sigma_y_absolute = True
+
+        if has_fitted_weight:
+            self._params = self._params[:-1]
+
+        self._param_covs = self._estimate_covariances(x_data, y_data)
+
+        self._deviance = self._estimate_deviance(
             x_data,
             y_data,
-            sigma_y,
-            is_sigma_y_absolute,
         )
-        self.param_covs = self._estimate_covariances(
-            x_data,
-            y_data,
-            sigma_y,
-            is_sigma_y_absolute,
-        )
-
-        if not self.is_semi_analytical and not is_sigma_y_absolute:
-            self.sigma_y = self.params[-1] * sigma_y
-            self.params = self.params[:-1]
-            self.param_covs = self.param_covs[:-1, :-1]
-        if not self.is_semi_analytical and is_sigma_y_absolute:
-            self.sigma_y = sigma_y
 
         return self.params, self.param_covs
 
@@ -261,9 +301,9 @@ class BaseMLE(ABC):
             Covariance matrix of the predicted dependent data. Shape (num_data, num_data).
         """
 
-        y_pred = self.model(x_data, *self.params)
+        y_pred = self._model(x_data, *self.params)
 
-        model = lambda params: self.model(x_data, *params)
+        model = lambda params: self._model(x_data, *params)
         J = nd.Jacobian(model, method="complex", step=1e-15)(self.params)
 
         y_cov = J @ self.param_covs @ J.T
@@ -274,8 +314,6 @@ class BaseMLE(ABC):
         self,
         x_data,
         y_data,
-        sigma_y,
-        is_sigma_y_absolute,
     ):
         """
         Estimate the model parameters using the maximum likelihood estimation.
@@ -289,30 +327,26 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is the absolute standard deviation of the noise.
-            If False, the absolute standard deviation is estimated from the data.
-            Default is False.
 
         Returns
         -------
         params : ndarray
             Optimal parameter values. Shape (num_params,).
         """
+        sigma_y = self._sigma_y
+        is_sigma_y_absolute = self._is_sigma_y_absolute
+
         objective = lambda params: self._negative_log_likelihood(
             x_data, y_data, params, sigma_y, is_sigma_y_absolute
         )
 
-        if np.any([p_i is None for p_i in self.params_init]):
+        if np.any([p_i is None for p_i in self._params_init]):
             if self.verbose:
                 print("Estimating initial parameters...")
 
             result = differential_evolution(
                 objective,
-                bounds=self.param_bounds,
+                bounds=self._param_bounds,
                 tol=self.optimizer_kwargs["tol"],
                 polish=False,
             )
@@ -325,15 +359,15 @@ class BaseMLE(ABC):
                 print("Message:", result.message)
                 print("--------------------------------")
 
-            self.params_init = result.x
+            self._params_init = result.x
 
         if self.verbose:
             print("Estimating optimal parameters...")
 
         result = minimize(
             objective,
-            x0=self.params_init,
-            bounds=self.param_bounds,
+            x0=self._params_init,
+            bounds=self._param_bounds,
             **self.optimizer_kwargs,
         )
 
@@ -353,8 +387,6 @@ class BaseMLE(ABC):
         self,
         x_data,
         y_data,
-        sigma_y=None,
-        is_sigma_y_absolute=False,
     ):
         """
         Calculate the covariance matrix using the Cramér-Rao bound.
@@ -365,23 +397,13 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is the absolute standard deviation of the noise.
-            If False, the absolute standard deviation is estimated from the data.
-            Default is False.
 
         Returns
         -------
         param_covs : ndarray
             Estimated covariance matrix. Shape (num_params, num_params).
         """
-
-        FIM = self._fisher_information_matrix(
-            x_data, y_data, sigma_y, is_sigma_y_absolute
-        )
+        FIM = self._fisher_information_matrix(x_data, y_data)
         try:
             param_covs = np.linalg.inv(FIM)
         except np.linalg.LinAlgError:
@@ -389,9 +411,37 @@ class BaseMLE(ABC):
 
         return param_covs
 
-    def _fisher_information_matrix(
-        self, x_data, y_data, sigma_y=None, is_sigma_y_absolute=False
+    def _estimate_deviance(
+        self,
+        x_data,
+        y_data,
     ):
+        """
+        Calculate the deviance.
+
+        Parameters
+        ----------
+        x_data : array_like
+            The independent variable with shape (num_vars, num_data).
+        y_data : array_like
+            The dependent data with shape (num_data,).
+
+        Returns
+        -------
+        deviance : float
+            Value of the deviance.
+        """
+        sigma_y = self._sigma_y
+        is_sigma_y_absolute = self._is_sigma_y_absolute
+        params = self.params
+
+        deviance = 2 * self._negative_log_likelihood(
+            x_data, y_data, params, sigma_y, is_sigma_y_absolute
+        )
+
+        return deviance
+
+    def _fisher_information_matrix(self, x_data, y_data):
         """
         Calculate the Fisher information matrix.
 
@@ -401,28 +451,23 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is the absolute standard deviation of the noise.
-            If False, the absolute standard deviation is estimated from the data.
-            Default is False.
 
         Returns
         -------
         FIM : ndarray
             Fisher information matrix. Shape (num_params, num_params).
         """
+        sigma_y = self._sigma_y
+        is_sigma_y_absolute = self._is_sigma_y_absolute
+        params = self.params
+
         if self.is_semi_analytical:
-            scale_squared = self._scale_squared(
-                x_data, y_data, sigma_y, is_sigma_y_absolute
-            )
+            scale_squared = self._scale_squared
             S_sq_inv = np.diag(1 / scale_squared)
 
-            model = lambda params: self.model(x_data, *params)
+            model = lambda params: self._model(x_data, *params)
 
-            J = nd.Jacobian(model, method="complex", step=1e-15)(self.params)
+            J = nd.Jacobian(model, method="complex", step=1e-15)(params)
             FIM = J.T @ S_sq_inv @ J
         else:
             nll = lambda params: self._negative_log_likelihood(
@@ -431,7 +476,7 @@ class BaseMLE(ABC):
 
             # logpdf doesn't accept complex numbers
             H = nd.Hessian(nll, method="central", step=np.sqrt(np.finfo(float).eps))(
-                self.params
+                params
             )
             FIM = H
 
@@ -450,18 +495,17 @@ class BaseMLE(ABC):
         Parameters
         ----------
         x_data : array_like
-            The independent variable where the data is measured.
+            The independent variable with shape (num_vars, num_data).
         y_data : array_like
-            The dependent data.
+            The dependent data with shape (num_data,).
         params : array_like
-            Parameter values.
-        sigma_y : array_like, optional
+            Parameter values. Shape (num_params,).
+        sigma_y : array_like
             Uncertainties (standard deviation) in y_data with shape (num_data,).
             May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
+        is_sigma_y_absolute : bool
             If True, sigma_y is the absolute standard deviation of the noise.
             If False, the absolute standard deviation is estimated from the data.
-            Default is False.
 
         Returns
         -------
@@ -471,9 +515,9 @@ class BaseMLE(ABC):
         pass
 
     @abstractmethod
-    def _scale_squared(self, x_data, y_data, sigma_y, is_sigma_y_absolute):
+    def _estimate_absolute_sigma_y(self, x_data, y_data):
         """
-        Calculate the squared scale parameter of the noise distribution.
+        Estimate the absolute standard deviation of the noise.
 
         Parameters
         ----------
@@ -481,18 +525,24 @@ class BaseMLE(ABC):
             The independent variable with shape (num_vars, num_data).
         y_data : array_like
             The dependent data with shape (num_data,).
-        sigma_y : array_like, optional
-            Uncertainties (standard deviation) in y_data with shape (num_data,).
-            May be used depending on the noise distribution.
-        is_sigma_y_absolute : bool, optional
-            If True, sigma_y is the absolute standard deviation of the noise.
-            If False, the absolute standard deviation is estimated from the data.
-            Default is False.
 
         Returns
         -------
-        scale_squared : ndarray
-            Squared scale parameter of the noise distribution. Shape (num_data,).
+        ndarray
+            The estimated absolute standard deviation of the noise. Shape (num_data,).
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def _scale_squared(self):
+        """
+        Squared scale parameter of the noise distribution.
+
+        Returns
+        -------
+        ndarray
+            Squared scale parameter. Shape (num_data,).
         """
         pass
 
